@@ -10,7 +10,6 @@ from fabric.api import *
 
 env.hosts = ['100.26.168.62', '52.201.185.25']
 
-
 def do_clean(number=0):
     """Delete out-of-date archives.
     Args:
@@ -19,15 +18,26 @@ def do_clean(number=0):
     number is 2, keeps the most and second-most recent archives,
     etc.
     """
-    number = 1 if int(number) == 0 else int(number)
+    number = int(number)
 
-    archives = sorted(os.listdir("versions"))
-    [archives.pop() for i in range(number)]
+    # Local cleaning
+    archives_local = sorted(os.listdir("versions"))
+    if number >= 0:
+        archives_to_keep_local = archives_local[-number:]
+    else:
+        archives_to_keep_local = []
+
     with lcd("versions"):
-        [local("rm ./{}".format(a)) for a in archives]
+        for archive in archives_local:
+            if archive not in archives_to_keep_local:
+                local("rm -rf {}".format(archive))
 
+    # Remote cleaning
     with cd("/data/web_static/releases"):
-        archives = run("ls -tr").split()
-        archives = [a for a in archives if "web_static_" in a]
-        [archives.pop() for i in range(number)]
-        [run("rm -rf ./{}".format(a)) for a in archives]
+        archives_remote = run("ls -tr").split()
+        archives_to_delete_remote = []
+        if number > 0:
+            archives_to_delete_remote = archives_remote[:-number]
+
+        for archive in archives_to_delete_remote:
+            run("rm -rf {}".format(archive))
